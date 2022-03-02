@@ -2,8 +2,6 @@ from mrjob.job import MRJob
 from mrjob.step import MRStep
 from nltk import ngrams
 
-# TODO: output as JSON!!
-
 class ArXivVocaber(MRJob):
     def configure_args(self):
         super(ArXivVocaber, self).configure_args()
