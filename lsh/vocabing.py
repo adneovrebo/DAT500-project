@@ -1,6 +1,5 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
-from nltk import ngrams
 
 class ArXivVocaber(MRJob):
     def configure_args(self):
@@ -27,7 +26,8 @@ class ArXivVocaber(MRJob):
     def ngram_mapper(self, _, text):
         if text:
             text_splitted = text.split()
-            for ngram in ngrams(text_splitted, int(self.options.ngrams)):
+            ngrams = zip(*[text_splitted[i:] for i in range(int(self.options.ngrams))])
+            for ngram in ngrams:            
                 yield ngram, 1
 
     def ngram_combiner(self, ngram, count):

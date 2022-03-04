@@ -1,8 +1,11 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
 import ast
-from nltk import ngrams
-import numpy as np
+import random
+
+def shuffle_and_return(x):
+  random.shuffle(x)
+  return x
 
 class LSH(MRJob):
     '''
@@ -35,11 +38,13 @@ class LSH(MRJob):
         with open(self.options.vocab) as f:
             self.vocab = list(ast.literal_eval(f.read().split("\t")[1]))
 
-        np.random.seed(42)
+        random.seed(42)
         numrows = 100
         
         # Set numpy random seed
-        self.signature = np.array([np.random.permutation(np.arange(1, len(self.vocab) + 1)).tolist() for _ in range(numrows)])
+        self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(numrows)]
+
+        self.n_ngrams = len(self.vocab[0].split())
 
         # Number of bands etc...
         self.bands = int(self.options.bands)
@@ -57,7 +62,7 @@ class LSH(MRJob):
 
         # Get the ngrams from the article text
         article_text_splitted = article_text.split()
-        n_grams = ngrams(article_text_splitted, 3)
+        n_grams = zip(*[article_text_splitted[i:] for i in range(int(self.n_ngrams))])
 
         # Join all lists in n_grams into string
         n_grams_joined = set([" ".join(x) for x in n_grams])
@@ -73,16 +78,17 @@ class LSH(MRJob):
 
         for hash_function in self.signature:
             # Get the hash value that corresponds to a one in the sparse vector
-            matches = hash_function[indexes_eq_1]
+            matches = [hash_function[i] for i in indexes_eq_1]
+
             # Then we can loop over all the matches and find the minimum value
             if len(matches) == 0:
                 # There is no match, so we can just set the hash value to the maximum value
-                hash_signature.append(np.max(hash_function))
+                hash_signature.append(max(hash_function))
             else:
                 hash_signature.append(min(matches))
 
         # Divide signature into bands
-        hash_signature_bands = [hash_signature[i:i+self.bands_step_size] for i in range(0, len(hash_signature), 10)]
+        hash_signature_bands = [hash_signature[i:i+self.bands_step_size] for i in range(0, len(hash_signature), self.bands_step_size)]
 
         # For all bands generate a hash value
         for band in hash_signature_bands:
