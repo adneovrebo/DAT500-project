@@ -25,9 +25,10 @@ class ArXivVocaber(MRJob):
         Finding number of ngrams over all articles
     '''
     def ngram_mapper(self, _, text):
-        text_splitted = text.split()
-        for ngram in ngrams(text_splitted, int(self.options.ngrams)):
-            yield ngram, 1
+        if text:
+            text_splitted = text.split()
+            for ngram in ngrams(text_splitted, int(self.options.ngrams)):
+                yield ngram, 1
 
     def ngram_combiner(self, ngram, count):
         yield ngram, sum(count)
