@@ -2,7 +2,7 @@ import pyspark
 
 sc = pyspark.SparkContext('local[*]')
 
-txt = sc.textFile('lorem_ipsum.txt')
+txt = sc.textFile('/pyspark/lorem_ipsum.txt')
 python_lines = txt.filter(lambda line: 'python' in line.lower())
 
 with open('results.txt', 'w') as file_obj:
