@@ -47,14 +47,6 @@ class LSH(MRJob):
         Generate feature vector for each article
     '''
     def bucket_mapper_init(self):
-        # Read the vocab file and store it in a list
-        self.vocab = load_vocab(self.options.vocab)
-
-        random.seed(42)
-        self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(self.options.hash_functions)]
-
-        self.n_ngrams = len(self.vocab[0].split())
-
         # Number of bands etc...
         self.bands = int(self.options.bands)
         self.hash_functions = int(self.options.hash_functions)
@@ -63,6 +55,15 @@ class LSH(MRJob):
         assert self.hash_functions % self.bands == 0
 
         self.bands_step_size = self.hash_functions // self.bands
+
+        # Read the vocab file and store it in a list
+        self.vocab = load_vocab(self.options.vocab)
+
+        random.seed(42)
+        self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(self.hash_functions)]
+
+        self.n_ngrams = len(self.vocab[0].split())
+
 
 
     def bucket_mapper(self, _, line):
