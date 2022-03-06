@@ -1,10 +1,11 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
+import	heapq
 
 class ArXivVocaber(MRJob):
     def configure_args(self):
         super(ArXivVocaber, self).configure_args()
-        self.add_passthru_arg("--ngrams", default=2)
+        self.add_passthru_arg("--ngrams", default=5)
         self.add_passthru_arg("--top_ngrams", default=1000)
     
     def steps(self):
@@ -28,7 +29,7 @@ class ArXivVocaber(MRJob):
             text_splitted = text.split()
             ngrams = zip(*[text_splitted[i:] for i in range(int(self.options.ngrams))])
             for ngram in ngrams:            
-                yield ngram, 1
+                yield " ".join(ngram), 1
 
     def ngram_combiner(self, ngram, count):
         yield ngram, sum(count)
@@ -36,17 +37,15 @@ class ArXivVocaber(MRJob):
     def ngram_reducer(self, ngram, count):
         yield ngram, sum(count)
 
-
     '''
         Sorting ngrams by frequency and keeping top n
     '''
     def top_ngrams_mapper(self, ngram, count):
-        yield None, (ngram, count)
-    
+        yield None, (count, ngram)
+
     def top_ngrams_reducer(self, _, ngram_count):
-        ngram_count = sorted(ngram_count, key=lambda x: x[1], reverse=True)
-        top_n =  ngram_count[:int(self.options.top_ngrams)]
-        yield "most_frequent_ngrams", [" ".join(ngram[0]) for ngram in top_n]
+        for	countAndWord in heapq.nlargest(int(self.options.top_ngrams), ngram_count):
+            yield _, countAndWord[1]
 
 if __name__ == '__main__':
     ArXivVocaber.run()

@@ -1,6 +1,5 @@
 from mrjob.job import MRJob
 from mrjob.step import MRStep
-import ast
 import random
 
 def shuffle_and_return(x):
@@ -11,6 +10,13 @@ def jaccard_similarity(x, y):
     x = set(x)
     y = set(y)
     return len(x.intersection(y)) / len(x.union(y))
+
+def load_vocab(vocab_file):
+    vocab = list()
+    with open(vocab_file) as f:
+        for line in f:
+            vocab.append(line.split()[1])
+    return vocab
 
 class LSH(MRJob):
     '''
@@ -41,8 +47,7 @@ class LSH(MRJob):
     '''
     def bucket_mapper_init(self):
         # Read the vocab file and store it in a list
-        with open(self.options.vocab) as f:
-            self.vocab = list(ast.literal_eval(f.read().split("\t")[1]))
+        self.vocab = load_vocab(self.options.vocab)
 
         random.seed(42)
         self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(self.options.hash_functions)]
