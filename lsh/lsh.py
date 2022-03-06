@@ -92,7 +92,7 @@ class LSH(MRJob):
 
         # For all bands generate a hash value
         for band in hash_signature_bands:
-            yield hash(str(band)), article_id
+            yield str(band), article_id
 
     def bucket_reducer(self, key, bucket_id):
         yield key, list(bucket_id)
