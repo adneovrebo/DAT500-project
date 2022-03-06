@@ -15,7 +15,8 @@ def load_vocab(vocab_file):
     vocab = list()
     with open(vocab_file) as f:
         for line in f:
-            vocab.append(line.split()[1])
+            ngram = line.split("\t")[1].strip().replace('"','')
+            vocab.append(ngram)
     return vocab
 
 class LSH(MRJob):
