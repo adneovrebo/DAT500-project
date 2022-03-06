@@ -35,7 +35,10 @@ class ArXivVocaber(MRJob):
         yield ngram, sum(count)
 
     def ngram_reducer(self, ngram, count):
-        yield ngram, sum(count)
+        # Only yield of the count is greater than 1, to make the sorting faster
+        sum_count = sum(count)
+        if sum_count > 1:
+            yield ngram, sum_count
 
     '''
         Sorting ngrams by frequency and keeping top n
