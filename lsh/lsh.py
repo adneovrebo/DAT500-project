@@ -7,6 +7,11 @@ def shuffle_and_return(x):
   random.shuffle(x)
   return x
 
+def jaccard_similarity(x, y):
+    x = set(x)
+    y = set(y)
+    return len(x.intersection(y)) / len(x.union(y))
+
 class LSH(MRJob):
     '''
         Generating signatures
@@ -16,7 +21,8 @@ class LSH(MRJob):
         self.add_file_arg('--vocab')
         self.add_passthru_arg("--bands", default=10)
         self.add_passthru_arg("--hash_functions", default=100)
-
+        self.add_passthru_arg("--threshold", default=0.8)
+    
     def steps(self):
         return [
             MRStep(
@@ -89,10 +95,13 @@ class LSH(MRJob):
 
         # For all bands generate a hash value
         for band in hash_signature_bands:
-            yield str(band), article_id
+            yield str(band), (article_id,  list(n_grams_joined))
 
-    def bucket_reducer(self, key, bucket_id):
-        yield key, list(bucket_id)
+    def bucket_reducer(self, key, bucket_values):
+        # Only keep the first instance of each bucket_values
+        added = set()
+        res = [bucket_value for bucket_value in bucket_values if bucket_value[0] not in added]
+        yield key, res
 
     '''
         Filter the buckets that have more than one article and store article id with corresponding articleids
@@ -102,7 +111,9 @@ class LSH(MRJob):
             for article_id in article_ids:
                 for article_id_2 in article_ids:
                     if article_id != article_id_2:
-                        yield article_id_2, article_id
+                        jaccard_similarity_value = jaccard_similarity(article_id[1], article_id_2[1])
+                        if jaccard_similarity_value > float(self.options.threshold):
+                            yield article_id_2[0], f"{article_id[0]} - {jaccard_similarity_value:.2f}"
 
     def filter_reducer(self, key, values):
         yield key, list(set(values))
