@@ -39,10 +39,7 @@ class LSH(MRJob):
             self.vocab = list(ast.literal_eval(f.read().split("\t")[1]))
 
         random.seed(42)
-        numrows = 100
-        
-        # Set numpy random seed
-        self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(numrows)]
+        self.signature = [shuffle_and_return(list(range(1, len(self.vocab) + 1))) for _ in range(self.options.hash_functions)]
 
         self.n_ngrams = len(self.vocab[0].split())
 
