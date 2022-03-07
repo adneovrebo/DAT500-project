@@ -17,6 +17,7 @@ class ArXivVocaber(MRJob):
             ),
             MRStep(
                 mapper=self.top_ngrams_mapper,
+                combiner=self.top_ngrams_combiner,
                 reducer=self.top_ngrams_reducer
             )
             ]
@@ -45,6 +46,10 @@ class ArXivVocaber(MRJob):
     '''
     def top_ngrams_mapper(self, ngram, count):
         yield None, (count, ngram)
+
+    def top_ngrams_combiner(self, _, ngram_count):
+        for	countAndWord in heapq.nlargest(int(self.options.top_ngrams), ngram_count):
+            yield _, countAndWord
 
     def top_ngrams_reducer(self, _, ngram_count):
         for	countAndWord in heapq.nlargest(int(self.options.top_ngrams), ngram_count):
