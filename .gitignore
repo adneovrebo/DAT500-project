@@ -1,5 +1,6 @@
-testing.ipynb
+*.ipynb
 test.txt
 cleaned.txt
 vocab.txt
 lsh/lsh.txt
+similarity_result/
