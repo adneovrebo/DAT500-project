@@ -1,6 +1,6 @@
-# ArXiv plagiarism detection
+# ArXiv plagiarism detection 🎓
 [DAT500](https://www.uis.no/en/course/DAT500_1) - Data-intensive Systems - University of Stavanger
-### Authors:
+### Authors ✍🏻
 - [Ådne Øvrebø](https://github.com/adneovrebo)
 - [Vegard Matre](https://github.com/vmatre)
 
@@ -18,7 +18,7 @@ In similarity detection, TF-IDF ( Term Frequency - Inverse Document Frequency ) 
 - [Tensorflow arXiv dataset](https://www.tensorflow.org/datasets/catalog/scientific_papers)
 - [arXiv metadata](https://www.kaggle.com/datasets/Cornell-University/arxiv)
 
-NB: Dataset is not included in this repository.
+⚠️ NB: Dataset is not included in this repository.
 
 ## Repo structure
 - preprocessing 
