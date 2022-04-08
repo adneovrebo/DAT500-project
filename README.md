@@ -1,8 +1,8 @@
 # ArXiv plagiarism detection
-DAT500 - Data-intensive Systems - University of Stavanger
+[DAT500](https://www.uis.no/en/course/DAT500_1) - Data-intensive Systems - University of Stavanger
 ### Authors:
-- Ådne Øvrebø 
-- Vegard Matre
+- [Ådne Øvrebø](https://github.com/adneovrebo)
+- [Vegard Matre](https://github.com/vmatre)
 
 ## Project abstraction
 In similarity detection, TF-IDF ( Term Frequency - Inverse Document Frequency ) and LSH (Locality Sensitive Hashing) are two widely used algorithms with different advantages. This paper focuses on implementing the two algorithms using the Hadoop and Spark ecosystem and preprocessing the data to be used with the algorithms. The mentioned algorithms will be used to find similar documents that might be plagiarism in the arXiv dataset, an open scholarly article dataset. LSH is implemented using both the MapReduce framework MRJob and Spark with MLLib. Implementation using MRJob is harder but allows for a deeper understanding of the workings behind the more abstract frameworks such as Spark. TF-IDF is implemented using Spark and MLLib. The mentioned frameworks allow for processing a large amount of data distributed over multiple machines in a cluster. 
