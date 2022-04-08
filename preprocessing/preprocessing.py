@@ -19,8 +19,13 @@ class PreProcessArxivArticles(MRJob):
         # Replace occurences of mulitple spaces with a single space
         article_text = re.sub(r'\s+', ' ', article_text)
 
+        # Remove special characters
+        article_text = re . sub ('/[^a-zA-Z ]/g', '',article_text)
+
         # Ensure that the article text is lowercase
         article_text = article_text.lower()
+
+        # Yield the article text and the article ids
         yield article_entry['article_id'],  article_text
 
 if __name__ == '__main__':

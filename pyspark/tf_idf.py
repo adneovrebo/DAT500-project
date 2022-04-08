@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.window import Window
-from pyspark.sql.functions import col, concat_ws, row_number, monotonically_increasing_id, count, explode
+from pyspark.sql.functions import col, concat_ws, row_number, monotonically_increasing_id
 from pyspark.ml.feature import HashingTF, IDF
 from pyspark.sql.types import *
 from sklearn.metrics.pairwise import cosine_similarity
@@ -56,63 +56,68 @@ if __name__ == "__main__":
         .getOrCreate()
     sc = spark.sparkContext 
 
-    rdd = (sc.textFile('cleaned2.txt') #'hdfs://namenode:9000/arxiv_dataset/cleaned.txt'
-        .map(lambda line: line.split('\t'))
-        .map(lambda r: (r[0], r[1].split(" "))))
+rdd = (sc.textFile('cleaned.txt') #'hdfs://namenode:9000/arxiv_dataset/cleaned.txt'
+    .map(lambda line: line.split('\t'))
+    .map(lambda r: (r[0], r[1].split(" "))))
 
-    schema = StructType([
-            StructField('id', StringType()),
-            StructField('words', ArrayType(elementType=StringType()))
-    ])
+schema = StructType([
+        StructField('id', StringType()),
+        StructField('words', ArrayType(elementType=StringType()))
+])
 
-    data = spark.createDataFrame(rdd, schema)
+data = spark.createDataFrame(rdd, schema)
 
-    hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**14)
-    tf = hashingTF.transform(data)
+hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**14)
+tf = hashingTF.transform(data)
 
-    idf = IDF(inputCol='features', outputCol='idf')
-    model = idf.fit(tf)
-    tf_idf = model.transform(tf)
-    tf_idf = tf_idf.drop('words', 'features')
+idf = IDF(inputCol='features', outputCol='idf')
+model = idf.fit(tf)
+tf_idf = model.transform(tf)
+tf_idf = tf_idf.drop('words', 'features')
 
-    vectors = tf_idf.rdd.map(attrgetter('idf'))
-    matrix = vectors.map(as_matrix)
-    matrix_reduced = matrix.reduce(lambda x, y: vstack([x, y]))
-    matrix_parallelized = parallelize_matrix(matrix_reduced, rows_per_chunk=100)
-    matrix_broadcast = broadcast_matrix(matrix_reduced)
-    res = matrix_parallelized.flatMap(lambda submatrix: \
-        calculated_cosine_similarity(csr_matrix(submatrix[1], \
-            shape=submatrix[2]), matrix_broadcast, submatrix[0]))
-
-    
-    result = res.map(lambda x: (x[0].tolist(), DenseVector(x[0:]))).toDF()
-
-    data = data.drop('words')
+vectors = tf_idf.rdd.map(attrgetter('idf'))
+matrix = vectors.map(as_matrix)
+matrix_reduced = matrix.reduce(lambda x, y: vstack([x, y]))
+matrix_parallelized = parallelize_matrix(matrix_reduced, rows_per_chunk=100)
+matrix_broadcast = broadcast_matrix(matrix_reduced)
+res = matrix_parallelized.flatMap(lambda submatrix: \
+    calculated_cosine_similarity(csr_matrix(submatrix[1], \
+        shape=submatrix[2]), matrix_broadcast, submatrix[0]))
 
 
-    final = result.drop('_1')
-    final = final.withColumn('_2', vector_to_array('_2'))
-
-    final = final.select("*", explode("_2").alias("exploded"))\
-        .where(col("exploded") > 0.2)\
-        .groupBy("_2")\
-        .agg(count("exploded").alias("sim_count"))\
-        .drop('_2')
+result = res.map(lambda x: ("count", len(list(filter(lambda y: y > 0.5))))).reduceByKey(lambda x, y: x + y)
+result.take(1)
 
 
-    # final = final.withColumn('_2', final._2.cast(ArrayType(elementType=StringType())))
-    # final = final.withColumn('_2', concat_ws(",",col("_2")))
+data = data.drop('words')
 
-    # data=data.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
-    # final=final.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
 
-    # final = data.join(final, on=["row_index"]).drop("row_index")
+final = result.drop('_1')
+final = final.withColumn('_2', vector_to_array('_2'))
 
-    dirpath = Path('output')
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
+# final = final.select("*", explode("_2").alias("exploded"))\
+#     .where(col("exploded") > 0.2)\
+#     .groupBy("_2")\
+#     .agg(count("exploded").alias("sim_count"))\
+#     .drop('_2')
 
-    final.write.csv('output')
+
+final = final.withColumn('_2', final._2.cast(ArrayType(elementType=StringType())))
+final = final.withColumn('_2', concat_ws(",",col("_2")))
+
+data=data.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
+final=final.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
+
+final = data.join(final, on=["row_index"]).drop("row_index")
+
+# Find number of items in _2 row greater than 0.2
+# final = final.withColumn('_2', explode("_2").alias("exploded")).where(col("exploded") > 0.2)
+
+dirpath = Path('output')
+if dirpath.exists() and dirpath.is_dir():
+    shutil.rmtree(dirpath)
+
+final.write.csv('output')
 
 
 
