@@ -31,7 +31,10 @@ amount of data distributed over multiple machines in a cluster.
 - [Tensorflow arXiv dataset](https://www.tensorflow.org/datasets/catalog/scientific_papers)
 - [arXiv metadata](https://www.kaggle.com/datasets/Cornell-University/arxiv)
 
-⚠️ NB: Dataset is not included in this repository.
+### Sample dataset
+In the `data`folder there is a sample dataset that can be used if you want to test the implementations. `sample.txt`includes 200 articles, while `preprocessed-sample.txt` have been preprocessed to be used with the algorithms LSH and TF-IDF. You can also find the corresponding article categories in `article_categories.csv`.
+
+⚠️ NB:Full dataset is not included in this repository.
 
 ## Repo structure
 - preprocessing 
@@ -50,6 +53,5 @@ amount of data distributed over multiple machines in a cluster.
     - [tf_idf.py](tf-idf/tf_idf.py)
         - Spark implementation
         - Run on cluster/local using 'spark-submit tf_idf.py' from tf-idf folder
-            - On cluster a subset of the dataset containing ~6000 articles will be used
             - On local a subset of 200 articles will be used since github dont allow so large files
 
