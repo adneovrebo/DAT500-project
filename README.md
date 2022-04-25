@@ -49,3 +49,7 @@ amount of data distributed over multiple machines in a cluster.
 - tf-idf
     - [tf_idf.py](tf-idf/tf_idf.py)
         - Spark implementation
+        - Run on cluster/local using 'spark-submit tf_idf.py' from tf-idf folder
+            - On cluster a subset of the dataset containing ~6000 articles will be used
+            - On local a subset of 200 articles will be used since github dont allow so large files
+
