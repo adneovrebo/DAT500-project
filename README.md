@@ -12,7 +12,7 @@ In similarity detection, TF-IDF ( Term Frequency - Inverse Document Frequency ) 
 - [MRJob](https://mrjob.readthedocs.io/en/latest/)
 - [Spark](https://spark.apache.org/)
 - [PySpark](https://spark.apache.org/docs/latest/api/python/pyspark.html)
-    - [MLLib](https://spark.apache.org/docs/latest/mllib-guide.html)
+    - [ML](https://spark.apache.org/docs/latest/mllib-guide.html)
 
 ## Datasets
 - [Tensorflow arXiv dataset](https://www.tensorflow.org/datasets/catalog/scientific_papers)
