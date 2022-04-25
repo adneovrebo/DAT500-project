@@ -21,7 +21,7 @@ In similarity detection, TF-IDF ( Term Frequency - Inverse Document Frequency ) 
 ### Sample dataset
 In the `data`folder there is a sample dataset that can be used if you want to test the implementations. `sample.txt`includes 200 articles, while `preprocessed-sample.txt` have been preprocessed to be used with the algorithms LSH and TF-IDF. You can also find the corresponding article categories in `article_categories.csv`.
 
-⚠️ NB:Full dataset is not included in this repository.
+⚠️ NB:Full dataset is not included in this repository due to size.
 
 ## Repo structure
 - preprocessing 
@@ -40,5 +40,4 @@ In the `data`folder there is a sample dataset that can be used if you want to te
     - [tf_idf.py](tf-idf/tf_idf.py)
         - Spark implementation
         - Run on cluster/local using 'spark-submit tf_idf.py' from tf-idf folder
-            - On local a subset of 200 articles will be used since github dont allow so large files
 
