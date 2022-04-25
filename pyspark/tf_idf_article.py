@@ -9,8 +9,6 @@ from scipy.sparse import csr_matrix
 from operator import attrgetter
 from scipy.sparse import vstack
 import numpy as np
-from pyspark.ml.linalg import DenseVector
-from pyspark.ml.functions import vector_to_array
 from pathlib import Path
 import shutil
 
@@ -36,17 +34,18 @@ def parallelize_matrix(scipy_mat, rows_per_chunk=100):
         i += current_chunk_size
     return sc.parallelize(submatrices)
 
-def calculated_cosine_similarity(sources, targets, threshold=.8):
+def calculated_cosine_similarity(sources, targets, inputs_start_index, threshold=.1):
     cosimilarities = cosine_similarity(sources.toarray(), targets.toarray())
-    for _, cosimilarity in enumerate(cosimilarities):
+    for i, cosimilarity in enumerate(cosimilarities):
+        res_list = []
         cosimilarity = cosimilarity.flatten()
         rounded = [np.round(x, 4) for x in cosimilarity]
-        # Find the best match by using argsort()[-1]
-        # target_index = cosimilarity.argsort()[-1]
-        # source_index = inputs_start_index + i
-        # similarity = cosimilarity[target_index]
-        # if cosimilarity >= threshold:
-        yield rounded
+        source_index = inputs_start_index + i + 1
+        for _, score in enumerate(rounded):
+            if score > threshold:
+                res_list.append(score)
+        
+        yield len(res_list)-1
 
 if __name__ == "__main__":
 
@@ -59,15 +58,18 @@ if __name__ == "__main__":
     sc = spark.sparkContext
     
     # Read the articles into a RDD
-    rdd = (sc.textFile('cleaned2.txt') #'hdfs://namenode:9000/arxiv_dataset/cleaned.txt'
+    rdd = (sc.textFile('cleaned.txt')
         .map(lambda line: line.split('\t'))
         .map(lambda r: (r[0].replace('"', ''), r[1].split(" "))))
 
     # Schema for DataFrame
     schema = StructType([
-            StructField('id', StringType()),
-            StructField('words', ArrayType(elementType=StringType()))
+        StructField('id', StringType()),
+        StructField('words', ArrayType(elementType=StringType())),
+        StructField('index', IntegerType())
     ])
+
+    rdd = rdd.zipWithIndex().map(lambda x: (x[0][0], x[0][1], x[1]))
 
     # Convert RDD to DataFrame
     data = spark.createDataFrame(rdd, schema)
@@ -89,15 +91,16 @@ if __name__ == "__main__":
 
     joined_data = data.join(categories, ["id"])
     
-    dirpath = Path('output')
-    if dirpath.exists() and dirpath.is_dir():
-        shutil.rmtree(dirpath)
+    # dirpath = Path('output')
+    # if dirpath.exists() and dirpath.is_dir():
+    #     shutil.rmtree(dirpath)
 
+    final_data = data.drop('words')
     for row in cats_list.collect():
         cat_df = joined_data.filter(joined_data[f'`{row.category}`'] == 1)
         if len(cat_df.take(2)) < 2: continue
 
-        hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**18)
+        hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**17)
         tf = hashingTF.transform(cat_df)
 
         idf = IDF(inputCol='features', outputCol='idf')
@@ -115,18 +118,15 @@ if __name__ == "__main__":
                 shape=submatrix[2]), matrix_broadcast, submatrix[0]))
         
         if len(res.take(1)) > 0:
-            result = res.map(lambda x: (x[0].tolist(), DenseVector(x[0:]))).toDF()
-            final = result.drop('_1')
-            final = final.withColumn('_2', vector_to_array('_2'))
-            final = final.withColumn('_2', final._2.cast(ArrayType(elementType=StringType())))
-            final = final.withColumn('_2', psf.concat_ws(",",psf.col("_2")))
-
-            final_data = data.drop('words')
-            final_data=final_data.withColumn('row_index', psf.row_number().over(Window.orderBy(psf.monotonically_increasing_id())))
-            final=final.withColumn('row_index', psf.row_number().over(Window.orderBy(psf.monotonically_increasing_id())))
-
-            final = final_data.join(final, on=["row_index"]).drop("row_index")
-
-            final.write.csv(f'output/{row.category}')
-            # res.saveAsTextFile(f'output/{row.category}')
-            # print(final.take(1))
+            final = res.sum()
+            print(f'Category: {row.category}; No. articles checked: {cat_df.count()}; Similar articles detected: {final}')
+            with open(f'result/{row.category}', 'w') as f:
+                f.write(f'Category: {row.category}; No. articles checked: {cat_df.count()}; Similar articles detected: {final}')
+            # final = final.agg(psf.sum("count"))
+            # print(f'{row.category}')
+            # final.show(5)
+            
+            # if final.take(1)[0][0] > 0:
+            #     final.write.csv(f'output/{row.category}')
+            # prt.write.csv(f'result/{row.category}')
+            

@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.window import Window
-from pyspark.sql.functions import col, concat_ws, row_number, monotonically_increasing_id
+from pyspark.sql.functions import row_number, monotonically_increasing_id
 from pyspark.ml.feature import HashingTF, IDF
 from pyspark.sql.types import *
 from sklearn.metrics.pairwise import cosine_similarity
@@ -8,8 +8,6 @@ from scipy.sparse import csr_matrix
 from operator import attrgetter
 from scipy.sparse import vstack
 import numpy as np
-from pyspark.ml.linalg import DenseVector
-from pyspark.ml.functions import vector_to_array
 from pathlib import Path
 import shutil
 
@@ -35,17 +33,25 @@ def parallelize_matrix(scipy_mat, rows_per_chunk=100):
         i += current_chunk_size
     return sc.parallelize(submatrices)
 
-def calculated_cosine_similarity(sources, targets, threshold=.8):
+def calculated_cosine_similarity(sources, targets, inputs_start_index, threshold=.2):
     cosimilarities = cosine_similarity(sources.toarray(), targets.toarray())
-    for _, cosimilarity in enumerate(cosimilarities):
+    for i, cosimilarity in enumerate(cosimilarities):
+        res_list = []
         cosimilarity = cosimilarity.flatten()
         rounded = [np.round(x, 4) for x in cosimilarity]
+        source_index = inputs_start_index + i + 1
+        for _, score in enumerate(rounded):
+            if score > threshold:
+                res_list.append(score)
         # Find the best match by using argsort()[-1]
         # target_index = cosimilarity.argsort()[-1]
-        # source_index = inputs_start_index + i
         # similarity = cosimilarity[target_index]
-        # if cosimilarity >= threshold:
-        yield rounded
+        # if similarity >= threshold:
+        yield (source_index, len(res_list)-1)
+
+def test_f(x):
+    lst = filter(lambda y: y > 0.25, x)
+    return len(list(lst))-1
 
 if __name__ == "__main__":
     spark = SparkSession.builder \
@@ -67,7 +73,7 @@ schema = StructType([
 
 data = spark.createDataFrame(rdd, schema)
 
-hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**14)
+hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**18)
 tf = hashingTF.transform(data)
 
 idf = IDF(inputCol='features', outputCol='idf')
@@ -80,30 +86,13 @@ matrix = vectors.map(as_matrix)
 matrix_reduced = matrix.reduce(lambda x, y: vstack([x, y]))
 matrix_parallelized = parallelize_matrix(matrix_reduced, rows_per_chunk=100)
 matrix_broadcast = broadcast_matrix(matrix_reduced)
-res = matrix_parallelized.flatMap(lambda submatrix: \
-    calculated_cosine_similarity(csr_matrix(submatrix[1], \
-        shape=submatrix[2]), matrix_broadcast, submatrix[0]))
+res = matrix_parallelized.flatMap(lambda submatrix: calculated_cosine_similarity(csr_matrix(submatrix[1], shape=submatrix[2]), matrix_broadcast, submatrix[0]))
 
-
-result = res.map(lambda x: ("count", len(list(filter(lambda y: y > 0.5))))).reduceByKey(lambda x, y: x + y)
-result.take(1)
-
+final = res.toDF().withColumnRenamed('_1', 'row_index').withColumnRenamed('_2', 'count')
 
 data = data.drop('words')
-
-
-final = result.drop('_1')
-final = final.withColumn('_2', vector_to_array('_2'))
-
-# final = final.select("*", explode("_2").alias("exploded"))\
-#     .where(col("exploded") > 0.2)\
-#     .groupBy("_2")\
-#     .agg(count("exploded").alias("sim_count"))\
-#     .drop('_2')
-
-
-final = final.withColumn('_2', final._2.cast(ArrayType(elementType=StringType())))
-final = final.withColumn('_2', concat_ws(",",col("_2")))
+data = data.withColumn("row_index", row_number().over(Window.orderBy(monotonically_increasing_id())))
+final = data.join(final, on=["row_index"]).drop("row_index")
 
 data=data.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
 final=final.withColumn('row_index', row_number().over(Window.orderBy(monotonically_increasing_id())))
