@@ -31,14 +31,12 @@ def parallelize_matrix(scipy_mat, rows_per_chunk=100):
         i += current_chunk_size
     return sc.parallelize(submatrices)
 
-def calculated_cosine_similarity(sources, targets, inputs_start_index, threshold=.1):
+def calculated_cosine_similarity(sources, targets, threshold=.2):
     cosimilarities = cosine_similarity(sources.toarray(), targets.toarray())
-    for i, cosimilarity in enumerate(cosimilarities):
+    for cosimilarity in cosimilarities:
         res_list = []
         cosimilarity = cosimilarity.flatten()
-        rounded = [np.round(x, 4) for x in cosimilarity]
-        source_index = inputs_start_index + i + 1
-        for _, score in enumerate(rounded):
+        for score in cosimilarity:
             if score > threshold:
                 res_list.append(score)
         
@@ -75,7 +73,7 @@ if __name__ == "__main__":
     cats_split = unique_cats.select(psf.split(psf.col('categories'), ' ').alias('categories'))
     # Make a list of all the categories
     cats_list = cats_split.select(psf.explode(psf.col('categories')).alias('category')).distinct()
-    
+
     # Add to categories dataframe a column for each unique category
     for row in cats_list.collect():
         category = row.category
@@ -89,7 +87,7 @@ if __name__ == "__main__":
         if len(cat_df.take(2)) < 2: continue
 
         # Calculate TF-IDF
-        hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**17)
+        hashingTF = HashingTF(inputCol="words", outputCol='features', numFeatures=2**18)
         tf = hashingTF.transform(cat_df)
         idf = IDF(inputCol='features', outputCol='idf')
         model = idf.fit(tf)
@@ -104,7 +102,7 @@ if __name__ == "__main__":
         matrix_broadcast = broadcast_matrix(matrix_reduced)
         res = matrix_parallelized.flatMap(lambda submatrix: \
             calculated_cosine_similarity(csr_matrix(submatrix[1], \
-                shape=submatrix[2]), matrix_broadcast, submatrix[0]))
+                shape=submatrix[2]), matrix_broadcast))
         
         # Save results to file
         if len(res.take(1)) > 0:
